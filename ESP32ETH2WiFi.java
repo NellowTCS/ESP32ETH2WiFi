@@ -1,4 +1,4 @@
-package com.example.ESP32ETH2WiFi;
+package com.example.ETH2WiFi;
 
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -19,7 +19,7 @@ import java.util.Set;
 
 public class ESP32ETH2WiFi extends AppCompatActivity {
 
-    private static final String TAG = "ESP32ETH2WiFi";
+    private static final String TAG = "ETH2WiFi";
     private BluetoothAdapter bluetoothAdapter;
     private BluetoothSocket bluetoothSocket;
     private TextView statusTextView;
