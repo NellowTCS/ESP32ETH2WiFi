@@ -9,7 +9,7 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.AppCompat.Light.NoActionBar">
         <activity
-            android:name=".ESP32ETH2WiFi"
+            android:name=".ETH2WiFi"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
