@@ -1,4 +1,4 @@
-package com.example.eth2wifi; // Change to your new package name
+package com.example.eth2wifi;
 
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -13,6 +13,7 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.ScrollView;
 import android.widget.TextView;
+
 import androidx.appcompat.app.AppCompatActivity;
 
 import java.io.IOException;
@@ -21,20 +22,14 @@ import java.io.OutputStream;
 import java.util.Set;
 import java.util.UUID;
 
-public class MainActivity extends AppCompatActivity {
+public class ETH2WiFi extends AppCompatActivity {
     private static final String TAG = "ETH2WiFi";
-    private static final String DEVICE_ADDRESS = "00:00:00:00:00:00"; // Replace with your Bluetooth device address
-    private static final UUID MY_UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB"); // Replace with your UUID
-
+    private static final UUID MY_UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB"); // SPP UUID
     private BluetoothAdapter bluetoothAdapter;
     private BluetoothSocket bluetoothSocket;
-    private InputStream inputStream;
-    private OutputStream outputStream;
-
     private TextView statusTextView;
     private ScrollView scrollView;
-    private Button connectButton;
-    private Button configureWiFiButton;
+    private StringBuilder messageBuffer = new StringBuilder();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -43,74 +38,78 @@ public class MainActivity extends AppCompatActivity {
 
         statusTextView = findViewById(R.id.statusTextView);
         scrollView = findViewById(R.id.scrollView);
-        connectButton = findViewById(R.id.connectButton);
-        configureWiFiButton = findViewById(R.id.configureWiFiButton);
+        Button configureWiFiButton = findViewById(R.id.configureWiFiButton);
 
         bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
-        checkBluetoothSupport();
-
-        connectButton.setOnClickListener(v -> connectToBluetoothDevice());
-        configureWiFiButton.setOnClickListener(v -> configureWiFi());
-    }
-
-    private void checkBluetoothSupport() {
         if (bluetoothAdapter == null) {
-            Log.e(TAG, "Bluetooth is not supported");
-            finish();
+            Log.e(TAG, "Bluetooth is not supported on this device.");
+            return;
         }
+
+        configureWiFiButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                configureWiFi();
+            }
+        });
+
+        registerReceiver(bluetoothReceiver, new IntentFilter(BluetoothDevice.ACTION_FOUND));
+        connectToBluetoothDevice();
     }
 
     private void connectToBluetoothDevice() {
-        try {
-            BluetoothDevice device = bluetoothAdapter.getRemoteDevice(DEVICE_ADDRESS);
-            bluetoothSocket = device.createRfcommSocketToServiceRecord(MY_UUID);
-            bluetoothSocket.connect();
-            inputStream = bluetoothSocket.getInputStream();
-            outputStream = bluetoothSocket.getOutputStream();
-            startListeningForMessages();
-            statusTextView.setText("Connected to Bluetooth device!");
-        } catch (IOException e) {
-            Log.e(TAG, "Could not connect to Bluetooth device", e);
-            statusTextView.setText("Connection failed!");
+        Set<BluetoothDevice> pairedDevices = bluetoothAdapter.getBondedDevices();
+        for (BluetoothDevice device : pairedDevices) {
+            if (device.getName().equals("ESP32ETH2WiFi")) { // Replace with your device name
+                try {
+                    bluetoothSocket = device.createRfcommSocketToServiceRecord(MY_UUID);
+                    bluetoothSocket.connect();
+                    Log.i(TAG, "Connected to Bluetooth device");
+                    listenForMessages();
+                } catch (IOException e) {
+                    Log.e(TAG, "Connection failed", e);
+                }
+            }
         }
     }
 
-    private void startListeningForMessages() {
-        new Thread(() -> {
-            byte[] buffer = new byte[1024];
-            int bytes;
-            while (bluetoothSocket != null) {
+    private void listenForMessages() {
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
                 try {
-                    bytes = inputStream.read(buffer);
-                    String message = new String(buffer, 0, bytes);
-                    runOnUiThread(() -> {
-                        statusTextView.append("\n" + message);
-                        scrollView.fullScroll(View.FOCUS_DOWN);
-                    });
+                    InputStream inputStream = bluetoothSocket.getInputStream();
+                    byte[] buffer = new byte[1024];
+                    int bytes;
+
+                    while ((bytes = inputStream.read(buffer)) != -1) {
+                        String message = new String(buffer, 0, bytes);
+                        appendMessage(message);
+                    }
                 } catch (IOException e) {
                     Log.e(TAG, "Error reading input", e);
-                    break;
                 }
             }
         }).start();
     }
 
-    private void configureWiFi() {
-        // Implement a method to configure WiFi via Bluetooth here
-        String ssid = "New_SSID"; // Replace with input from the user
-        String password = "New_Password"; // Replace with input from the user
-        sendWiFiConfigToESP(ssid, password);
+    private void appendMessage(String message) {
+        messageBuffer.append(message);
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                statusTextView.setText(messageBuffer.toString());
+                scrollView.fullScroll(View.FOCUS_DOWN);
+            }
+        });
     }
 
-    private void sendWiFiConfigToESP(String ssid, String password) {
-        String configCommand = "CONFIG_WIFI:" + ssid + "," + password + "\n";
-        try {
-            outputStream.write(configCommand.getBytes());
-            statusTextView.append("\nSent WiFi configuration: " + configCommand);
-        } catch (IOException e) {
-            Log.e(TAG, "Error sending WiFi configuration", e);
+    private final BroadcastReceiver bluetoothReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            // Handle Bluetooth device discovery results if needed
         }
-    }
+    };
 
     @Override
     protected void onDestroy() {
@@ -122,5 +121,11 @@ public class MainActivity extends AppCompatActivity {
         } catch (IOException e) {
             Log.e(TAG, "Error closing socket", e);
         }
+        unregisterReceiver(bluetoothReceiver);
+    }
+
+    private void configureWiFi() {
+        // Implement Wi-Fi configuration logic
+        // You can launch a new activity or a dialog for user to input SSID and Password
     }
 }
