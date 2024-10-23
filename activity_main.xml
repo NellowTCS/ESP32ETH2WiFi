@@ -1,28 +1,48 @@
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:orientation="vertical">
+    android:layout_height="match_parent">
 
     <TextView
         android:id="@+id/statusTextView"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Status"
-        android:textSize="18sp"/>
+        android:text="@string/status"
+        android:textSize="18sp"
+        android:padding="16dp" />
 
     <ScrollView
         android:id="@+id/scrollView"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content">
+        android:layout_height="wrap_content"
+        android:layout_below="@id/statusTextView">
+
         <TextView
             android:id="@+id/messageTextView"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"/>
+            android:layout_height="wrap_content"
+            android:textSize="16sp"
+            android:padding="16dp" />
     </ScrollView>
+
+    <Button
+        android:id="@+id/connectBluetoothButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentLeft="true"
+        android:text="@string/connect_to_bluetooth"
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentStart="true"
+        android:layout_margin="16dp"/>
 
     <Button
         android:id="@+id/configureWiFiButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Configure Wi-Fi" />
-</LinearLayout>
+        android:layout_toRightOf="@id/connectBluetoothButton"
+        android:text="@string/configure_wifi"
+        android:layout_alignParentBottom="true"
+        android:layout_toEndOf="@id/connectBluetoothButton"
+        android:layout_margin="16dp"/>
+
+</RelativeLayout>
