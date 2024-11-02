@@ -7,8 +7,8 @@
 BluetoothSerial SerialBT; // Bluetooth Serial object
 
 // Initial Wi-Fi credentials
-String ssid = "Netgear25";          
-String password = "windyvalley933";  
+String ssid = "ssid";          
+String password = "password";  
 
 // Ethernet configuration
 uint8_t mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED }; 
