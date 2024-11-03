@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <item name="connectButton" type="id" />
+    <item name="wifiConfigButton" type="id" />
+    <item name="messagesView" type="id" />
+</resources>
