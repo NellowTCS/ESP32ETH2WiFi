@@ -8,4 +8,6 @@
 	<string name="enter_ssid">Enter WiFi Network Name (SSID)</string>
 	<string name="enter_password">Enter WiFi Password</string>
 	<string name="send_wi_fi_credentials">Configure WiFi</string>
+    <string name="app_name">ETH2WiFi</string>
+	<string name="name_of_the_device">wyze_hub</string>
 </resources>
