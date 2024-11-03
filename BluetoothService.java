@@ -15,6 +15,7 @@ import androidx.core.app.ActivityCompat;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Set;
 import java.util.UUID;
 
 public class BluetoothService {
@@ -28,23 +29,25 @@ public class BluetoothService {
     private boolean isConnected = false;
     private ConnectedThread connectedThread;
 
-    // Standard SPP UUID
-    private static final UUID UUID_SPP = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
-
+    private static final UUID BTMODULEUUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
+    
     public interface BluetoothCallback {
         void onConnected();
         void onConnectionFailed(String error);
-        void onDataReceived(String message);
+        void onMessageReceived(String message);
     }
-
+    
     private BluetoothCallback callback;
 
-    public BluetoothService(Context context, TextView messagesView, BluetoothCallback callback) {
+    public BluetoothService(Context context, TextView messagesView) {
         this.context = context;
         this.messagesView = messagesView;
-        this.callback = callback;
         this.mainHandler = new Handler(Looper.getMainLooper());
-        bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+        this.bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+    }
+
+    public void setCallback(BluetoothCallback callback) {
+        this.callback = callback;
     }
 
     public boolean isConnected() {
@@ -53,18 +56,18 @@ public class BluetoothService {
 
     public void connectBluetooth(String deviceName) {
         if (bluetoothAdapter == null) {
-            showMessage("Bluetooth is not available on this device");
+            showToast("Bluetooth is not available on this device");
             return;
         }
 
         if (!bluetoothAdapter.isEnabled()) {
-            showMessage("Please enable Bluetooth");
+            showToast("Please enable Bluetooth");
             return;
         }
 
         if (ActivityCompat.checkSelfPermission(context, android.Manifest.permission.BLUETOOTH_CONNECT) 
-            != PackageManager.PERMISSION_GRANTED) {
-            showMessage("Bluetooth permission not granted");
+                != PackageManager.PERMISSION_GRANTED) {
+            showToast("Bluetooth permission not granted");
             return;
         }
 
@@ -73,18 +76,18 @@ public class BluetoothService {
             BluetoothDevice device = findDevice(deviceName);
             if (device == null) {
                 mainHandler.post(() -> {
-                    showMessage("Device " + deviceName + " not found");
-                    callback.onConnectionFailed("Device not found");
+                    showToast("Device " + deviceName + " not found");
+                    if (callback != null) callback.onConnectionFailed("Device not found");
                 });
                 return;
             }
 
             try {
-                connectToDevice(device);
+                connect(device);
             } catch (IOException e) {
                 mainHandler.post(() -> {
-                    showMessage("Connection failed: " + e.getMessage());
-                    callback.onConnectionFailed(e.getMessage());
+                    showToast("Connection failed: " + e.getMessage());
+                    if (callback != null) callback.onConnectionFailed(e.getMessage());
                 });
             }
         }).start();
@@ -92,11 +95,12 @@ public class BluetoothService {
 
     private BluetoothDevice findDevice(String deviceName) {
         if (ActivityCompat.checkSelfPermission(context, android.Manifest.permission.BLUETOOTH_CONNECT) 
-            != PackageManager.PERMISSION_GRANTED) {
+                != PackageManager.PERMISSION_GRANTED) {
             return null;
         }
-
-        for (BluetoothDevice device : bluetoothAdapter.getBondedDevices()) {
+        
+        Set<BluetoothDevice> pairedDevices = bluetoothAdapter.getBondedDevices();
+        for (BluetoothDevice device : pairedDevices) {
             if (device.getName().equals(deviceName)) {
                 return device;
             }
@@ -104,116 +108,93 @@ public class BluetoothService {
         return null;
     }
 
-    private void connectToDevice(BluetoothDevice device) throws IOException {
+    private void connect(BluetoothDevice device) throws IOException {
         if (ActivityCompat.checkSelfPermission(context, android.Manifest.permission.BLUETOOTH_CONNECT) 
-            != PackageManager.PERMISSION_GRANTED) {
+                != PackageManager.PERMISSION_GRANTED) {
             return;
         }
 
-        // Close any existing connection
-        if (bluetoothSocket != null) {
-            try {
-                bluetoothSocket.close();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-
-        // Create new connection
-        bluetoothSocket = device.createRfcommSocketToServiceRecord(UUID_SPP);
+        bluetoothSocket = device.createRfcommSocketToServiceRecord(BTMODULEUUID);
         bluetoothSocket.connect();
         outputStream = bluetoothSocket.getOutputStream();
         inputStream = bluetoothSocket.getInputStream();
         isConnected = true;
 
-        // Start listening for messages
+        mainHandler.post(() -> {
+            showToast("Connected to " + device.getName());
+            if (callback != null) callback.onConnected();
+        });
+
+        // Start reading messages
         connectedThread = new ConnectedThread();
         connectedThread.start();
-
-        mainHandler.post(() -> {
-            showMessage("Connected to " + device.getName());
-            callback.onConnected();
-        });
-    }
-
-    public void sendMessage(String message) {
-        if (!isConnected || outputStream == null) {
-            showMessage("Not connected");
-            return;
-        }
-
-        new Thread(() -> {
-            try {
-                outputStream.write((message + "\n").getBytes());
-                outputStream.flush();
-                mainHandler.post(() -> showMessage("Sent: " + message));
-            } catch (IOException e) {
-                mainHandler.post(() -> showMessage("Error sending message: " + e.getMessage()));
-            }
-        }).start();
     }
 
     public void disconnect() {
         isConnected = false;
-        if (connectedThread != null) {
-            connectedThread.cancel();
-            connectedThread = null;
-        }
-
-        if (bluetoothSocket != null) {
-            try {
-                bluetoothSocket.close();
-            } catch (IOException e) {
-                e.printStackTrace();
+        try {
+            if (connectedThread != null) {
+                connectedThread.interrupt();
+                connectedThread = null;
             }
-            bluetoothSocket = null;
+            if (bluetoothSocket != null) {
+                bluetoothSocket.close();
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
         }
-        showMessage("Disconnected");
     }
 
-    private void showMessage(String message) {
-        if (messagesView != null) {
-            messagesView.append(message + "\n");
+    public void sendMessage(String message) {
+        if (!isConnected) {
+            showToast("Not connected to device");
+            return;
         }
-        Toast.makeText(context, message, Toast.LENGTH_SHORT).show();
+
+        try {
+            outputStream.write((message + "\n").getBytes());
+            outputStream.flush();
+            appendMessage("Sent: " + message);
+        } catch (IOException e) {
+            showToast("Error sending message: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    private void appendMessage(String message) {
+        if (messagesView != null) {
+            mainHandler.post(() -> messagesView.append(message + "\n"));
+        }
+    }
+
+    private void showToast(String message) {
+        mainHandler.post(() -> Toast.makeText(context, message, Toast.LENGTH_SHORT).show());
     }
 
     private class ConnectedThread extends Thread {
-        private boolean running = true;
-
+        @Override
         public void run() {
             byte[] buffer = new byte[1024];
             int bytes;
 
-            while (running) {
+            while (isConnected) {
                 try {
                     bytes = inputStream.read(buffer);
-                    if (bytes > 0) {
-                        final String message = new String(buffer, 0, bytes);
-                        mainHandler.post(() -> {
-                            showMessage("Received: " + message);
-                            callback.onDataReceived(message);
-                        });
+                    String message = new String(buffer, 0, bytes);
+                    appendMessage("Received: " + message);
+                    if (callback != null) {
+                        mainHandler.post(() -> callback.onMessageReceived(message));
                     }
                 } catch (IOException e) {
-                    if (running) {
+                    if (isConnected) {
+                        isConnected = false;
                         mainHandler.post(() -> {
-                            isConnected = false;
-                            showMessage("Connection lost: " + e.getMessage());
-                            callback.onConnectionFailed("Connection lost");
+                            showToast("Connection lost: " + e.getMessage());
+                            if (callback != null) callback.onConnectionFailed("Connection lost");
                         });
-                        break;
                     }
+                    break;
                 }
-            }
-        }
-
-        public void cancel() {
-            running = false;
-            try {
-                inputStream.close();
-            } catch (IOException e) {
-                e.printStackTrace();
             }
         }
     }
