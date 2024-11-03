@@ -20,22 +20,22 @@ public class MainActivity extends AppCompatActivity implements BluetoothService.
     private Button wifiConfigButton;
 
     private final String[] REQUIRED_PERMISSIONS = {
-        Manifest.permission.BLUETOOTH,
-        Manifest.permission.BLUETOOTH_ADMIN,
-        Manifest.permission.BLUETOOTH_CONNECT,
-        Manifest.permission.BLUETOOTH_SCAN
+            Manifest.permission.BLUETOOTH,
+            Manifest.permission.BLUETOOTH_ADMIN,
+            Manifest.permission.BLUETOOTH_CONNECT,
+            Manifest.permission.BLUETOOTH_SCAN
     };
 
     private final ActivityResultLauncher<String[]> permissionLauncher =
-        registerForActivityResult(new ActivityResultContracts.RequestMultiplePermissions(), permissions -> {
-            boolean allGranted = true;
-            for (Boolean isGranted : permissions.values()) {
-                allGranted &= isGranted;
-            }
-            if (allGranted) {
-                initializeBluetooth();
-            }
-        });
+            registerForActivityResult(new ActivityResultContracts.RequestMultiplePermissions(), permissions -> {
+                boolean allGranted = true;
+                for (Boolean isGranted : permissions.values()) {
+                    allGranted &= isGranted;
+                }
+                if (allGranted) {
+                    initializeBluetooth();
+                }
+            });
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -51,7 +51,8 @@ public class MainActivity extends AppCompatActivity implements BluetoothService.
         connectButton.setOnClickListener(v -> {
             if (bluetoothService != null) {
                 if (!bluetoothService.isConnected()) {
-                    bluetoothService.connectBluetooth("ESP32ETH2WiFi");
+                    // Update this line to use the partial name for connection
+                    bluetoothService.connectBluetooth("ETH2WiFi");
                 } else {
                     bluetoothService.disconnect();
                     updateButtonStates(false);
@@ -59,8 +60,8 @@ public class MainActivity extends AppCompatActivity implements BluetoothService.
             }
         });
 
-        wifiConfigButton.setOnClickListener(v -> 
-            startActivity(new Intent(MainActivity.this, WiFiConfigActivity.class))
+        wifiConfigButton.setOnClickListener(v ->
+                startActivity(new Intent(MainActivity.this, WiFiConfigActivity.class))
         );
 
         updateButtonStates(false);
@@ -69,7 +70,7 @@ public class MainActivity extends AppCompatActivity implements BluetoothService.
     private void checkPermissions() {
         boolean allPermissionsGranted = true;
         for (String permission : REQUIRED_PERMISSIONS) {
-            if (ContextCompat.checkSelfPermission(this, permission) 
+            if (ContextCompat.checkSelfPermission(this, permission)
                     != PackageManager.PERMISSION_GRANTED) {
                 allPermissionsGranted = false;
                 break;

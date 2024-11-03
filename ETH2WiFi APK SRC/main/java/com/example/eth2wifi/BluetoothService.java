@@ -30,13 +30,13 @@ public class BluetoothService {
     private ConnectedThread connectedThread;
 
     private static final UUID BTMODULEUUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
-    
+
     public interface BluetoothCallback {
         void onConnected();
         void onConnectionFailed(String error);
         void onMessageReceived(String message);
     }
-    
+
     private BluetoothCallback callback;
 
     public BluetoothService(Context context, TextView messagesView) {
@@ -54,7 +54,8 @@ public class BluetoothService {
         return isConnected;
     }
 
-    public void connectBluetooth(String deviceName) {
+    // Update the method signature to accept a partial name
+    public void connectBluetooth(String partialName) {
         if (bluetoothAdapter == null) {
             showToast("Bluetooth is not available on this device");
             return;
@@ -65,7 +66,7 @@ public class BluetoothService {
             return;
         }
 
-        if (ActivityCompat.checkSelfPermission(context, android.Manifest.permission.BLUETOOTH_CONNECT) 
+        if (ActivityCompat.checkSelfPermission(context, android.Manifest.permission.BLUETOOTH_CONNECT)
                 != PackageManager.PERMISSION_GRANTED) {
             showToast("Bluetooth permission not granted");
             return;
@@ -73,10 +74,10 @@ public class BluetoothService {
 
         // Run connection in background thread
         new Thread(() -> {
-            BluetoothDevice device = findDevice(deviceName);
+            BluetoothDevice device = findDeviceWithPartialName(partialName);
             if (device == null) {
                 mainHandler.post(() -> {
-                    showToast("Device " + deviceName + " not found");
+                    showToast("Device containing '" + partialName + "' not found");
                     if (callback != null) callback.onConnectionFailed("Device not found");
                 });
                 return;
@@ -93,15 +94,16 @@ public class BluetoothService {
         }).start();
     }
 
-    private BluetoothDevice findDevice(String deviceName) {
-        if (ActivityCompat.checkSelfPermission(context, android.Manifest.permission.BLUETOOTH_CONNECT) 
+    // Replace the existing findDevice method with one for partial name matching
+    private BluetoothDevice findDeviceWithPartialName(String partialName) {
+        if (ActivityCompat.checkSelfPermission(context, android.Manifest.permission.BLUETOOTH_CONNECT)
                 != PackageManager.PERMISSION_GRANTED) {
             return null;
         }
-        
+
         Set<BluetoothDevice> pairedDevices = bluetoothAdapter.getBondedDevices();
         for (BluetoothDevice device : pairedDevices) {
-            if (device.getName().equals(deviceName)) {
+            if (device.getName() != null && device.getName().contains(partialName)) {
                 return device;
             }
         }
@@ -109,7 +111,7 @@ public class BluetoothService {
     }
 
     private void connect(BluetoothDevice device) throws IOException {
-        if (ActivityCompat.checkSelfPermission(context, android.Manifest.permission.BLUETOOTH_CONNECT) 
+        if (ActivityCompat.checkSelfPermission(context, android.Manifest.permission.BLUETOOTH_CONNECT)
                 != PackageManager.PERMISSION_GRANTED) {
             return;
         }
